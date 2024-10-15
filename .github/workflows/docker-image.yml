@@ -1,0 +1,39 @@
+name: Update Kubernetes Manifests
+
+on:
+  pull_request:
+    branches:
+      - main  
+  workflow_dispatch:   
+jobs:
+  update-manifest:
+    runs-on: ubuntu-24.04
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Build the Docker image
+      - name: Build the Docker image
+        id: build-docker-image
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          NEW_TAG=${GITHUB_SHA}  # Use the commit SHA for the new image tag
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          echo "Building image: $DOCKER_USERNAME/do19:${NEW_TAG}"
+          docker build . -f Dockerfile -t $DOCKER_USERNAME/do19:${NEW_TAG}
+
+      # Step 3: Login to Docker Hub
+      - name: Login to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: |
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+
+      # Step 4: Push the Docker image
+      - name: Push the Docker image
+        run: docker push $DOCKER_USERNAME/do19:${{ env.NEW_TAG }}
+
